@@ -70,8 +70,18 @@ single source of truth (read by Codex, Cursor, Copilot, Gemini CLI, Aider and ot
 `GEMINI.md` and `.github/copilot-instructions.md` only point to it. Agents must log decisions here
 and keep `docs/STRATEGY.md` roadmap current.
 
+## 2026-10-28 · Founder direction: rename, platform/app separation, plugins, smooth deploy, UX
+**Requirements stated by the founder:**
+1. The name "Daftar" sounds too Indian; buyers respond to names with a Western/European feel. Rename (choice pending).
+2. Platform and clients must be separate: a doctor app or legal app is a *client* that uses the platform.
+3. UX should be reviewed from an expert perspective and improved.
+4. Deployment must be smooth: run the platform, pick plugins to assemble a use case; the platform should
+   hardly change; plugins can be any number.
+**Status:** proposal written in `docs/ARCHITECTURE-V2.md` and `docs/UX-REVIEW.md`; awaiting approval of the
+name and the architecture before refactoring.
+
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
-- Final brand name and domain; move code to its own repository instead of `lex-vitae`?
+- Final brand name and domain (rename requested 2026-10-28); move code to its own repository instead of `lex-vitae`?
 - Hosting choice (Indian data residency for health data) and pilot pricing (free 60 days?).
 - Is the Lex Vitae law firm a warm contact for the legal pack?

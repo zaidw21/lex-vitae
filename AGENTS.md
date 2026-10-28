@@ -7,6 +7,7 @@ This is the single source of truth for working on this repo. Tool-specific files
 2. `docs/DECISIONS.md`: every product decision so far, *why*, and what was rejected. Don't re-open a
    settled decision without the founder asking; propose instead.
 3. `docs/STRATEGY.md`: thesis, pricing, go-to-market, roadmap (current and future scope).
+4. Pending work: `docs/ARCHITECTURE-V2.md` (platform + plugins + apps, proposed) and `docs/UX-REVIEW.md`.
 
 ## Keeping context alive (required)
 
