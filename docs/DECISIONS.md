@@ -80,8 +80,16 @@ and keep `docs/STRATEGY.md` roadmap current.
 **Status:** proposal written in `docs/ARCHITECTURE-V2.md` and `docs/UX-REVIEW.md`; awaiting approval of the
 name and the architecture before refactoring.
 
+## 2026-10-28 · Name, hosting budget, UX priority
+- **Name: Arcus** (Latin for "arch"), chosen by the founder from Tessera / Corvia / Arcus / Practis / Veyra.
+  Rename not yet applied in code. Domain/trademark check still to do.
+- **Hosting:** any cloud; cheapest possible, free to start, but there must be a working CD pipeline.
+- **UX:** "decent enough for now". `docs/UX-REVIEW.md` stays as a backlog, not the next task.
+- **Architecture granularity is under discussion.** The founder wants platform and domain apps kept
+  separate but asked to be challenged on whether a full plugin system makes sense at this stage.
+
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
-- Final brand name and domain (rename requested 2026-10-28); move code to its own repository instead of `lex-vitae`?
+- Domain/trademark check for "Arcus"; move code to its own repository instead of `lex-vitae`?
 - Hosting choice (Indian data residency for health data) and pilot pricing (free 60 days?).
 - Is the Lex Vitae law firm a warm contact for the legal pack?
