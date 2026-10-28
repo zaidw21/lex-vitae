@@ -92,10 +92,13 @@ name and the architecture before refactoring.
 **Founder clarification:** "platform" also means logging, observability, communication-channel
 integrations, database integrations/drivers, etc., all provided by the platform as interfaces, libraries and
 providers that apps use. Apps never talk to vendors directly.
-**Agent position (pending founder confirmation):** agree, using a ports-and-adapters design (each
+**Confirmed by the founder (2026-10-28):** agreed, using a ports-and-adapters design (each
 capability is an interface plus one real adapter plus a test fake; a second real adapter only when needed).
 Standardise on Postgres instead of abstracting the database engine; use OpenTelemetry/structured logs instead of a
 home-grown observability layer; enforce tenant isolation inside the platform's data layer.
+The founder's point on telemetry: it is wired up **once in the platform** (logger, error capture, tracing,
+automatically tagged with org/user/request/app), so no app ever re-implements it. Same principle for every
+cross-cutting concern: apps get it for free just by running on the platform.
 
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
