@@ -36,6 +36,8 @@ WhatsApp conversation charges passed through at cost. **$1M ARR ≈ 4,000 practi
 4. Add the legal pack using bar association contacts; then CAs / labs / coaching based on demand.
 
 ## Roadmap
+**Done (v0.1, 2026-10-28)**: platform core + clinic pack + legal pack; see "Current state" in `AGENTS.md`.
+
 **Next (to go live with pilots)**
 - WhatsApp approved templates + Meta onboarding; delivery/read webhooks
 - Phone OTP login; password reset

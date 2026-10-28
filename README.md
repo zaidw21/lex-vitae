@@ -12,6 +12,9 @@ Shared by every pack: contacts with DPDP consent, appointments, billing with **c
 staff member, every discount and void audited), follow-ups, WhatsApp outbox, team roles, audit log,
 insights dashboard, multiple practices per login.
 
+> **Working on this repo (people or AI agents)?** Start with [`AGENTS.md`](AGENTS.md), then
+> [`docs/DECISIONS.md`](docs/DECISIONS.md) and [`docs/STRATEGY.md`](docs/STRATEGY.md).
+
 ## Run it locally
 
 Needs Node 20+ and Postgres 14+.
@@ -28,7 +31,7 @@ Demo logins (password `demo1234`):
 - `demo@daftar.in`: owner of *Sharma Family Clinic* and *Verma & Associates* (switch at top-left)
 - `reception@daftar.in`: front-desk staff at the clinic
 
-Checks: `npm run typecheck`, `npm test`, `npm run build`.
+Checks: `npm run typecheck`, `npm test`, `npm run build`, and `npm run e2e` (browser test against a running, freshly seeded app).
 
 ## Architecture
 
