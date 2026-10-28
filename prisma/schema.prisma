@@ -1,0 +1,440 @@
+// Daftar data model.
+//
+// The platform core (organizations, people, scheduling, queue, encounters,
+// documents, billing, tasks, messaging, audit) is shared by every vertical.
+// Vertical-specific detail lives in JSON `data`/`fields` columns whose shape is
+// owned by the vertical pack in src/verticals/*, plus a few dedicated models
+// (e.g. Matter for legal) when a vertical needs real relations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Vertical {
+  CLINIC
+  LEGAL
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  PRACTITIONER
+  STAFF
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  vertical  Vertical
+  city      String?
+  phone     String?
+  email     String?
+  address   String?
+  locale    String   @default("en")
+  // Vertical-specific settings: letterhead lines, default fee, GSTIN, etc.
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  memberships  Membership[]
+  contacts     Contact[]
+  appointments Appointment[]
+  queue        QueueEntry[]
+  encounters   Encounter[]
+  documents    Document[]
+  catalog      CatalogItem[]
+  invoices     Invoice[]
+  payments     Payment[]
+  tasks        Task[]
+  messages     Message[]
+  matters      Matter[]
+  auditLogs    AuditLog[]
+  counters     Counter[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  memberships Membership[]
+  sessions    Session[]
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  orgId          String
+  userId         String
+  role           Role
+  // Shown on documents, e.g. "MBBS, MD (Medicine)" or "Advocate, High Court".
+  title          String?
+  qualifications String?
+  registrationNo String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  appointments Appointment[]
+  queue        QueueEntry[]
+  encounters   Encounter[]
+
+  @@unique([orgId, userId])
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token
+  userId    String
+  orgId     String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Patients, clients, students... the person the practice serves.
+model Contact {
+  id            String    @id @default(cuid())
+  orgId         String
+  name          String
+  phone         String
+  email         String?
+  gender        String?
+  dob           DateTime? @db.Date
+  address       String?
+  preferredLang String    @default("en")
+  whatsappOptIn Boolean   @default(true)
+  consentAt     DateTime?
+  tags          String[]  @default([])
+  // Vertical fields: blood group, allergies, chronic conditions / occupation...
+  fields        Json      @default("{}")
+  createdAt     DateTime  @default(now())
+
+  org          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  queue        QueueEntry[]
+  encounters   Encounter[]
+  documents    Document[]
+  invoices     Invoice[]
+  tasks        Task[]
+  messages     Message[]
+  matters      Matter[]
+
+  @@index([orgId, phone])
+  @@index([orgId, name])
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  orgId       String
+  contactId   String
+  providerId  String?
+  startsAt    DateTime
+  durationMin Int               @default(15)
+  status      AppointmentStatus @default(BOOKED)
+  source      String            @default("PHONE")
+  notes       String?
+  createdAt   DateTime          @default(now())
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact  Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider Membership?  @relation(fields: [providerId], references: [id])
+  queue    QueueEntry?
+
+  @@index([orgId, startsAt])
+}
+
+enum QueueStatus {
+  WAITING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+  CANCELLED
+}
+
+model QueueEntry {
+  id            String      @id @default(cuid())
+  orgId         String
+  date          DateTime    @db.Date
+  tokenNumber   Int
+  contactId     String
+  providerId    String?
+  appointmentId String?     @unique
+  status        QueueStatus @default(WAITING)
+  // Unguessable code for the public "where am I in the queue" page.
+  publicCode    String      @unique
+  checkedInAt   DateTime    @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact     Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider    Membership?  @relation(fields: [providerId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  encounter   Encounter?
+
+  @@unique([orgId, date, tokenNumber])
+  @@index([orgId, date, status])
+}
+
+// One interaction: a consultation, a hearing, a class...
+model Encounter {
+  id           String    @id @default(cuid())
+  orgId        String
+  contactId    String
+  providerId   String?
+  queueEntryId String?   @unique
+  matterId     String?
+  kind         String
+  occurredAt   DateTime  @default(now())
+  summary      String?
+  data         Json      @default("{}")
+  followUpOn   DateTime? @db.Date
+  createdAt    DateTime  @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact    Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  provider   Membership?  @relation(fields: [providerId], references: [id])
+  queueEntry QueueEntry?  @relation(fields: [queueEntryId], references: [id])
+  matter     Matter?      @relation(fields: [matterId], references: [id])
+  documents  Document[]
+  invoices   Invoice[]
+
+  @@index([orgId, occurredAt])
+  @@index([contactId])
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  orgId       String
+  contactId   String
+  encounterId String?
+  matterId    String?
+  type        String
+  title       String
+  data        Json     @default("{}")
+  publicCode  String   @unique
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  encounter Encounter?   @relation(fields: [encounterId], references: [id])
+  matter    Matter?      @relation(fields: [matterId], references: [id])
+
+  @@index([orgId, createdAt])
+}
+
+enum CatalogKind {
+  SERVICE
+  MEDICINE
+}
+
+// Billable services and (for clinics) favourite medicines.
+model CatalogItem {
+  id     String      @id @default(cuid())
+  orgId  String
+  kind   CatalogKind
+  name   String
+  price  Int         @default(0) // paise
+  data   Json        @default("{}")
+  active Boolean     @default(true)
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, kind])
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  orgId       String
+  number      Int
+  contactId   String
+  encounterId String?
+  matterId    String?
+  status      InvoiceStatus @default(UNPAID)
+  subtotal    Int // paise
+  discount    Int           @default(0)
+  total       Int
+  paid        Int           @default(0)
+  notes       String?
+  voidReason  String?
+  publicCode  String        @unique
+  createdById String?
+  createdAt   DateTime      @default(now())
+
+  org       Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  encounter Encounter?    @relation(fields: [encounterId], references: [id])
+  matter    Matter?       @relation(fields: [matterId], references: [id])
+  items     InvoiceItem[]
+  payments  Payment[]
+
+  @@unique([orgId, number])
+  @@index([orgId, createdAt])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  qty         Int    @default(1)
+  unitPrice   Int
+  amount      Int
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  CARD
+  BANK
+  OTHER
+}
+
+model Payment {
+  id           String      @id @default(cuid())
+  orgId        String
+  invoiceId    String
+  amount       Int
+  mode         PaymentMode
+  reference    String?
+  receivedById String?
+  receivedAt   DateTime    @default(now())
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoice Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, receivedAt])
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id         String     @id @default(cuid())
+  orgId      String
+  contactId  String?
+  matterId   String?
+  kind       String     @default("GENERAL")
+  title      String
+  dueOn      DateTime   @db.Date
+  status     TaskStatus @default(OPEN)
+  remindedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  matter  Matter?      @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, status, dueOn])
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model Message {
+  id          String        @id @default(cuid())
+  orgId       String
+  contactId   String?
+  channel     String        @default("WHATSAPP")
+  to          String
+  template    String
+  body        String
+  status      MessageStatus @default(QUEUED)
+  provider    String
+  providerRef String?
+  error       String?
+  createdAt   DateTime      @default(now())
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+}
+
+// Legal vertical: a case/matter handled for a client.
+model Matter {
+  id            String    @id @default(cuid())
+  orgId         String
+  contactId     String
+  title         String
+  caseNumber    String?
+  cnr           String?
+  court         String?
+  caseType      String?
+  oppositeParty String?
+  stage         String?
+  status        String    @default("OPEN")
+  nextHearingOn DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact    Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  encounters Encounter[]
+  documents  Document[]
+  invoices   Invoice[]
+  tasks      Task[]
+
+  @@index([orgId, nextHearingOn])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actorId   String?
+  actorName String?
+  action    String
+  entity    String
+  entityId  String?
+  data      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+}
+
+// Per-organization sequences (invoice numbers, etc.).
+model Counter {
+  orgId String
+  key   String
+  value Int    @default(0)
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, key])
+}
