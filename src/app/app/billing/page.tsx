@@ -1,12 +1,11 @@
 import Link from "next/link";
 import type { InvoiceStatus } from "@prisma/client";
-import { InvoiceBadge } from "@/components/status";
-import { Card, Empty, PageHeader, Stat } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
-import { formatDate, istDate, istDayRange } from "@/lib/time";
+import { InvoiceBadge } from "@/platform/ui/status";
+import { Card, Empty, PageHeader, Stat } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { db } from "@/platform/lib/db";
+import { formatMoney } from "@/platform/lib/money";
+import { formatDate, istDate, istDayRange } from "@/platform/lib/time";
 
 const FILTERS: { key: string; label: string; status?: InvoiceStatus[] }[] = [
   { key: "all", label: "All" },
@@ -17,7 +16,6 @@ const FILTERS: { key: string; label: string; status?: InvoiceStatus[] }[] = [
 
 export default async function BillingPage({ searchParams }: { searchParams: Promise<{ f?: string }> }) {
   const ctx = await requireCtx();
-  requireModule(ctx, "billing");
   const { f = "all" } = await searchParams;
   const filter = FILTERS.find((x) => x.key === f) ?? FILTERS[0];
   const { start, end } = istDayRange(istDate());
@@ -64,7 +62,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         ) : (
           <div className="overflow-x-auto">
             <table className="table">
-              <thead><tr><th>#</th><th>Date</th><th>{ctx.pack.terms.contact}</th><th className="text-right">Total</th><th className="text-right">Paid</th><th>Status</th></tr></thead>
+              <thead><tr><th>#</th><th>Date</th><th>{ctx.app.terms.contact}</th><th className="text-right">Total</th><th className="text-right">Paid</th><th>Status</th></tr></thead>
               <tbody>
                 {invoices.map((i) => (
                   <tr key={i.id} className="hover:bg-slate-50">

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import { Card, Empty, PageHeader } from "@/components/ui";
-import { canManage, requireCtx } from "@/core/auth";
-import { db } from "@/lib/db";
-import { formatDateTime } from "@/lib/time";
+import { Card, Empty, PageHeader } from "@/platform/ui/ui";
+import { canManage, requireCtx } from "@/platform/kernel/auth";
+import { db } from "@/platform/lib/db";
+import { formatDateTime } from "@/platform/lib/time";
 
 export default async function AuditPage() {
   const ctx = await requireCtx();

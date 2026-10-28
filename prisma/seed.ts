@@ -1,12 +1,14 @@
-// Demo data: one clinic and one law chamber, both owned by demo@daftar.in / demo1234.
+// Demo data: one clinic and one law chamber, both owned by demo@example.com / demo1234.
 // Re-running wipes the demo organizations and recreates them relative to today.
 
 import bcrypt from "bcryptjs";
 import { PrismaClient, type PaymentMode, type Prisma } from "@prisma/client";
-import { provisionOrganization } from "../src/core/provision";
-import { publicCode } from "../src/lib/ids";
-import { addDays, istDate, istDayRange } from "../src/lib/time";
-import { STARTER_MEDICINES } from "../src/verticals/clinic/rx";
+import { provisionOrganization } from "../src/platform/services/provision";
+import { publicCode } from "../src/platform/lib/ids";
+import { addDays, istDate, istDayRange } from "../src/platform/lib/time";
+import { clinicConfig } from "../src/apps/clinic/config";
+import { STARTER_MEDICINES } from "../src/apps/clinic/rx";
+import { legalConfig } from "../src/apps/legal/config";
 
 const db = new PrismaClient();
 
@@ -32,17 +34,17 @@ const CASES = [
 
 async function main() {
   const passwordHash = await bcrypt.hash("demo1234", 10);
-  const demoUsers = ["demo@daftar.in", "reception@daftar.in"];
+  const demoUsers = ["demo@example.com", "reception@example.com"];
   const existing = await db.membership.findMany({ where: { user: { email: { in: demoUsers } } }, select: { orgId: true } });
   await db.organization.deleteMany({ where: { id: { in: existing.map((m) => m.orgId) } } });
   await db.user.deleteMany({ where: { email: { in: demoUsers } } });
 
-  const doctor = await db.user.create({ data: { email: "demo@daftar.in", name: "Dr. Anil Sharma", phone: "+919826012345", passwordHash } });
-  const reception = await db.user.create({ data: { email: "reception@daftar.in", name: "Kiran (Reception)", passwordHash } });
+  const doctor = await db.user.create({ data: { email: "demo@example.com", name: "Dr. Anil Sharma", phone: "+919826012345", passwordHash } });
+  const reception = await db.user.create({ data: { email: "reception@example.com", name: "Kiran (Reception)", passwordHash } });
 
   await seedClinic(doctor.id, reception.id);
   await seedLegal(doctor.id);
-  console.log("Seeded. Log in with demo@daftar.in / demo1234 (owner) or reception@daftar.in / demo1234 (front desk).");
+  console.log("Seeded. Log in with demo@example.com / demo1234 (owner) or reception@example.com / demo1234 (front desk).");
 }
 
 function person() {
@@ -54,10 +56,10 @@ function person() {
 
 async function seedClinic(doctorId: string, receptionId: string) {
   const owner = await db.user.findUniqueOrThrow({ where: { id: doctorId } });
-  const org = await provisionOrganization({ name: "Sharma Family Clinic", city: "Indore", phone: "+917312345678", vertical: "CLINIC", owner });
+  const org = await provisionOrganization({ name: "Sharma Family Clinic", city: "Indore", phone: "+917312345678", app: clinicConfig, owner });
   await db.organization.update({
     where: { id: org.id },
-    data: { address: "12, Saket Nagar, Indore, MP 452018", settings: { consultationFee: 400, followUpFee: 0, followUpFreeDays: 7, avgConsultMinutes: 7 } },
+    data: { address: "12, Saket Nagar, Indore, MP 452018", settings: { consultationFee: 400, followUpFee: 0, followUpFreeDays: 7, queueAvgMinutes: 7 } },
   });
   const ownerMembership = await db.membership.update({
     where: { orgId_userId: { orgId: org.id, userId: doctorId } },
@@ -127,7 +129,7 @@ async function seedClinic(doctorId: string, receptionId: string) {
       await db.document.create({
         data: {
           orgId: org.id, contactId: patient.id, encounterId: encounter.id, type: "PRESCRIPTION", title: "Prescription",
-          data: { ...clinical, items, followUpOn: followUpOn?.toISOString() ?? null, doctor: doctorSnapshot } as Prisma.InputJsonValue,
+          data: { ...clinical, items, followUpOn: followUpOn?.toISOString() ?? null, issuedBy: doctorSnapshot } as Prisma.InputJsonValue,
           publicCode: publicCode(), createdById: doctorId, createdAt: completedAt!,
         },
       });
@@ -174,7 +176,7 @@ async function seedClinic(doctorId: string, receptionId: string) {
 
 async function seedLegal(ownerId: string) {
   const owner = await db.user.findUniqueOrThrow({ where: { id: ownerId } });
-  const org = await provisionOrganization({ name: "Verma & Associates", city: "Indore", phone: "+917314567890", vertical: "LEGAL", owner });
+  const org = await provisionOrganization({ name: "Verma & Associates", city: "Indore", phone: "+917314567890", app: legalConfig, owner });
   await db.organization.update({ where: { id: org.id }, data: { address: "Chamber 214, District Court Complex, Indore" } });
   const membership = await db.membership.update({
     where: { orgId_userId: { orgId: org.id, userId: ownerId } },
@@ -206,7 +208,7 @@ async function seedLegal(ownerId: string) {
       const heldOn = addDays(today, -h * between(20, 40));
       await db.encounter.create({
         data: {
-          orgId: org.id, contactId: client.id, providerId: membership.id, matterId: matter.id, kind: "HEARING", occurredAt: heldOn,
+          orgId: org.id, contactId: client.id, providerId: membership.id, refType: "matter", refId: matter.id, kind: "HEARING", occurredAt: heldOn,
           summary: pick(["Adjourned at request of opposite counsel.", "Reply filed; matter fixed for evidence.", "Arguments heard in part.", "Witness PW-1 examined."]),
           data: { purpose: pick(stages), outcome: pick(["Adjourned at request of opposite counsel.", "Reply filed; matter fixed for evidence.", "Arguments heard in part.", "Witness PW-1 examined."]) },
         },
@@ -218,7 +220,7 @@ async function seedLegal(ownerId: string) {
     const createdAt = addDays(new Date(), -between(1, 60));
     const invoice = await db.invoice.create({
       data: {
-        orgId: org.id, number: invoiceNo, contactId: client.id, matterId: matter.id, subtotal: total, total, paid,
+        orgId: org.id, number: invoiceNo, contactId: client.id, refType: "matter", refId: matter.id, subtotal: total, total, paid,
         status: paid === total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID", publicCode: publicCode(), createdById: ownerId, createdAt,
         items: { create: [{ description: "Professional fees", qty: 1, unitPrice: total, amount: total }] },
       },

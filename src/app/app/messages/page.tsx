@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { retryMessageAction } from "@/actions/messages";
-import { MessageBadge } from "@/components/status";
-import { Card, Empty, PageHeader, Stat } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatPhone } from "@/lib/phone";
-import { formatDateTime, istDate, istDayRange } from "@/lib/time";
+import { retryMessageAction } from "@/platform/actions/messages";
+import { MessageBadge } from "@/platform/ui/status";
+import { Card, Empty, PageHeader, Stat } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { db } from "@/platform/lib/db";
+import { formatPhone } from "@/platform/lib/phone";
+import { formatDateTime, istDate, istDayRange } from "@/platform/lib/time";
 
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ failed?: string }> }) {
   const ctx = await requireCtx();
-  requireModule(ctx, "messages");
   const onlyFailed = (await searchParams).failed === "1";
   const { start } = istDayRange(istDate());
   const [messages, sentToday, failedCount] = await Promise.all([
@@ -27,7 +25,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="WhatsApp" subtitle="Every message Daftar sends on your behalf." />
+      <PageHeader title="WhatsApp" subtitle="Every message Arcus sends on your behalf." />
       {!live && (
         <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <b>Test mode:</b> messages are recorded here but not delivered. Connect a WhatsApp Business number to send them for real.

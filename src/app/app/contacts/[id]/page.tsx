@@ -1,33 +1,30 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addToQueueAction } from "@/actions/queue";
-import { InvoiceBadge, MessageBadge, TaskBadge } from "@/components/status";
-import { Badge, Card, Empty, PageHeader } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { findContact } from "@/core/contacts";
-import { db } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
-import { formatPhone } from "@/lib/phone";
-import { ageFrom, formatDate, formatDateTime } from "@/lib/time";
-import { hasModule } from "@/verticals";
+import { InvoiceBadge, MessageBadge, TaskBadge } from "@/platform/ui/status";
+import { Badge, Card, Empty, PageHeader } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { findContact } from "@/platform/services/contacts";
+import { extensions } from "@/platform/kernel/modules";
+import { formatMoney } from "@/platform/lib/money";
+import { formatPhone } from "@/platform/lib/phone";
+import { ageFrom, formatDate, formatDateTime } from "@/platform/lib/time";
 
 export default async function ContactPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireCtx();
   const contact = await findContact(ctx, (await params).id);
   if (!contact) notFound();
-  const where = { orgId: ctx.org.id, contactId: contact.id };
-  const [encounters, invoices, tasks, messages, matters] = await Promise.all([
-    db.encounter.findMany({ where, orderBy: { occurredAt: "desc" }, take: 30, include: { documents: true, matter: true } }),
-    db.invoice.findMany({ where, orderBy: { createdAt: "desc" }, take: 20 }),
-    db.task.findMany({ where, orderBy: { dueOn: "desc" }, take: 10 }),
-    db.message.findMany({ where, orderBy: { createdAt: "desc" }, take: 10 }),
-    db.matter.findMany({ where, orderBy: { createdAt: "desc" } }),
+  const where = { contactId: contact.id };
+  const [encounters, invoices, tasks, messages] = await Promise.all([
+    ctx.db.encounter.findMany({ where, orderBy: { occurredAt: "desc" }, take: 30, include: { documents: true } }),
+    ctx.db.invoice.findMany({ where, orderBy: { createdAt: "desc" }, take: 20 }),
+    ctx.db.task.findMany({ where, orderBy: { dueOn: "desc" }, take: 10 }),
+    ctx.db.message.findMany({ where, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
-  const t = ctx.pack.terms;
+  const slots = extensions(ctx);
+  const t = ctx.app.terms;
   const fields = contact.fields as Record<string, string>;
   const age = ageFrom(contact.dob);
   const due = invoices.filter((i) => i.status !== "VOID").reduce((s, i) => s + i.total - i.paid, 0);
-  const isClinic = ctx.org.vertical === "CLINIC";
 
   return (
     <>
@@ -36,15 +33,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
         subtitle={[formatPhone(contact.phone), age !== null ? `${age} yrs` : null, contact.gender].filter(Boolean).join(" · ")}
         actions={
           <>
-            {hasModule(ctx.org.vertical, "queue") && (
-              <form action={addToQueueAction}>
-                <input type="hidden" name="contactId" value={contact.id} />
-                <button className="btn-primary">🎫 Give token</button>
-              </form>
-            )}
-            {isClinic && <Link href={`/app/consult?contact=${contact.id}`} className="btn-secondary">Start {t.encounter.toLowerCase()}</Link>}
-            {hasModule(ctx.org.vertical, "matters") && <Link href={`/app/matters/new?contact=${contact.id}`} className="btn-primary">+ New matter</Link>}
-            <Link href={`/app/appointments?contact=${contact.id}`} className="btn-secondary">Book appointment</Link>
+            {slots.map((e, i) => e.contactActions && <e.contactActions key={i} ctx={ctx} contact={contact} />)}
             <Link href={`/app/billing/new?contact=${contact.id}`} className="btn-secondary">New bill</Link>
             <Link href={`/app/contacts/${contact.id}/edit`} className="btn-ghost">Edit</Link>
           </>
@@ -52,18 +41,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {matters.length > 0 && (
-            <Card title="Matters">
-              <ul className="divide-y divide-slate-100">
-                {matters.map((m) => (
-                  <li key={m.id} className="flex justify-between gap-3 py-2 text-sm">
-                    <Link href={`/app/matters/${m.id}`} className="link">{m.title}</Link>
-                    <span className="text-slate-500">Next: {formatDate(m.nextHearingOn)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+          {slots.map((e, i) => e.contactSections && <e.contactSections key={i} ctx={ctx} contact={contact} />)}
           <Card title={`${t.encounters} (${encounters.length})`}>
             {encounters.length === 0 ? (
               <Empty>No {t.encounters.toLowerCase()} yet.</Empty>
@@ -76,7 +54,6 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="text-sm font-semibold">{formatDateTime(e.occurredAt)}</div>
                         <div className="flex gap-2">
-                          {e.matter && <Badge tone="violet">{e.matter.title}</Badge>}
                           {e.documents.map((doc) => (
                             <Link key={doc.id} href={`/app/documents/${doc.id}`} className="link text-xs">📄 {doc.title}</Link>
                           ))}
@@ -114,7 +91,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
         <div className="space-y-6">
           <Card title="Details">
             <dl className="space-y-2 text-sm">
-              {ctx.pack.contactFields.map((f) => (
+              {ctx.app.contactFields.map((f) => (
                 <div key={f.key} className="flex justify-between gap-3">
                   <dt className="text-slate-500">{f.label}</dt>
                   <dd className={`text-right ${f.key === "allergies" && fields[f.key] ? "font-semibold text-red-700" : ""}`}>{fields[f.key] || "—"}</dd>

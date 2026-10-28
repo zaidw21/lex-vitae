@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canTransition } from "@/core/queue";
-import { computeTotals, statusFor } from "@/core/billing";
-import { renderTemplate, messageText } from "@/core/templates";
-import { formatMoney, rupeesToPaise } from "@/lib/money";
-import { normalizePhone } from "@/lib/phone";
-import { ageFrom, istDate, istDayRange, parseIstDateTime } from "@/lib/time";
-import { PACKS } from "@/verticals";
-import { describeFrequency, instruction, sanitizeRxItems } from "@/verticals/clinic/rx";
+import { computeTotals, statusFor } from "@/platform/services/billing";
+import { renderTemplate, messageText, PLATFORM_MESSAGES } from "@/platform/services/templates";
+import { formatMoney, rupeesToPaise } from "@/platform/lib/money";
+import { normalizePhone } from "@/platform/lib/phone";
+import { ageFrom, istDate, istDayRange, parseIstDateTime } from "@/platform/lib/time";
+import { APPS } from "@/registry";
+import { MODULES } from "@/platform/kernel/modules";
+import { canTransition } from "@/platform/modules/queue/service";
+import { describeFrequency, instruction, sanitizeRxItems } from "@/apps/clinic/rx";
 
 describe("phone", () => {
   it("normalizes Indian mobiles in common formats", () => {
@@ -98,24 +99,38 @@ describe("prescriptions", () => {
   });
 });
 
-describe("vertical packs", () => {
+describe("apps and modules", () => {
+  const sources = [...Object.values(APPS), ...Object.values(MODULES), { id: "platform", messages: PLATFORM_MESSAGES }];
+
   it("render every template in both languages without leftover placeholders", () => {
-    for (const pack of Object.values(PACKS)) {
-      for (const [key, langs] of Object.entries(pack.messages)) {
+    for (const source of sources) {
+      for (const [key, langs] of Object.entries(source.messages ?? {})) {
         for (const lang of ["en", "hi"] as const) {
-          const vars = Object.fromEntries([...langs![lang].matchAll(/\{\{(\w+)\}\}/g)].map((m) => [m[1], "X"]));
-          const text = messageText(pack, key as never, lang, vars)!;
-          expect(text, `${pack.id}.${key}.${lang}`).not.toMatch(/\{\{/);
+          const vars = Object.fromEntries([...langs[lang].matchAll(/\{\{(\w+)\}\}/g)].map((m) => [m[1], "X"]));
+          const text = messageText([source.messages], key, lang, vars)!;
+          expect(text, `${source.id}.${key}.${lang}`).not.toMatch(/\{\{/);
         }
       }
     }
   });
+
+  it("prefers the app's wording, then the module's, then the platform's", () => {
+    const app = { X: { en: "app", hi: "app" } };
+    const mod = { X: { en: "module", hi: "module" }, Y: { en: "module-y", hi: "module-y" } };
+    expect(messageText([app, mod, PLATFORM_MESSAGES], "X", "en", {})).toBe("app");
+    expect(messageText([undefined, mod, PLATFORM_MESSAGES], "Y", "en", {})).toBe("module-y");
+    expect(messageText([undefined, undefined, PLATFORM_MESSAGES], "RECEIPT", "hi", { amount: "₹1" })).toContain("₹1");
+    expect(messageText([undefined], "NOPE", "en", {})).toBeNull();
+  });
+
   it("leaves unknown variables empty", () => {
     expect(renderTemplate("Hi {{name}}{{missing}}", { name: "Asha" })).toBe("Hi Asha");
   });
-  it("every pack includes the shared core modules", () => {
-    for (const pack of Object.values(PACKS)) {
-      for (const m of ["dashboard", "contacts", "billing", "messages", "settings"] as const) expect(pack.modules).toContain(m);
+
+  it("every app only uses registered modules and is keyed by its id", () => {
+    for (const [id, app] of Object.entries(APPS)) {
+      expect(app.id).toBe(id);
+      for (const m of [...app.modules, ...(app.optionalModules ?? [])]) expect(MODULES[m]).toBeDefined();
     }
   });
 });

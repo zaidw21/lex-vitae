@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { signup } from "@/actions/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Logo } from "@/components/logo";
-import { getCtx } from "@/core/auth";
-import { PACKS } from "@/verticals";
+import { signup } from "@/platform/actions/auth";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { Logo } from "@/platform/ui/logo";
+import { getCtx } from "@/platform/kernel/auth";
+import { APPS } from "@/registry";
 
 export const metadata: Metadata = { title: "Create your account" };
 
@@ -24,9 +24,9 @@ export default async function SignupPage() {
             <fieldset>
               <legend className="label">What kind of practice?</legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                {Object.values(PACKS).map((p, i) => (
+                {Object.values(APPS).map((p, i) => (
                   <label key={p.id} className="card flex cursor-pointer gap-3 p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
-                    <input type="radio" name="vertical" value={p.id} defaultChecked={i === 0} className="mt-1 accent-brand-600" />
+                    <input type="radio" name="app" value={p.id} defaultChecked={i === 0} className="mt-1 accent-brand-600" />
                     <span>
                       <span className="block text-sm font-semibold">{p.name}</span>
                       <span className="block text-xs text-slate-500">{p.tagline}</span>

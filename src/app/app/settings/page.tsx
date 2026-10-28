@@ -1,24 +1,20 @@
 import Link from "next/link";
-import { logout } from "@/actions/auth";
-import { addCatalogItemAction, addMemberAction, removeCatalogItemAction, removeMemberAction, updateOrgAction, updateProfileAction } from "@/actions/settings";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Badge, Card, PageHeader } from "@/components/ui";
-import { canManage, requireCtx } from "@/core/auth";
-import { db } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
-import { FREQUENCIES, TIMINGS, instruction, sanitizeRxItems } from "@/verticals/clinic/rx";
+import { logout } from "@/platform/actions/auth";
+import { addMemberAction, addServiceAction, removeCatalogItemAction, removeMemberAction, setModulesAction, updateOrgAction, updateProfileAction } from "@/platform/actions/settings";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { Badge, Card, PageHeader } from "@/platform/ui/ui";
+import { canManage, requireCtx } from "@/platform/kernel/auth";
+import { formatMoney } from "@/platform/lib/money";
+import { extensions, MODULES } from "@/platform/kernel/modules";
 
 export default async function SettingsPage() {
   const ctx = await requireCtx();
   const manager = canManage(ctx);
-  const isClinic = ctx.org.vertical === "CLINIC";
-  const s = ctx.org.settings as { gstin?: string; consultationFee?: number; followUpFee?: number; followUpFreeDays?: number; avgConsultMinutes?: number };
-  const [members, catalog] = await Promise.all([
-    db.membership.findMany({ where: { orgId: ctx.org.id, active: true }, include: { user: true }, orderBy: { createdAt: "asc" } }),
-    db.catalogItem.findMany({ where: { orgId: ctx.org.id, active: true }, orderBy: { name: "asc" } }),
+  const s = ctx.org.settings as { gstin?: string };
+  const [members, services] = await Promise.all([
+    ctx.db.membership.findMany({ where: { active: true }, include: { user: true }, orderBy: { createdAt: "asc" } }),
+    ctx.db.catalogItem.findMany({ where: { kind: "SERVICE", active: true }, orderBy: { name: "asc" } }),
   ]);
-  const services = catalog.filter((c) => c.kind === "SERVICE");
-  const medicines = catalog.filter((c) => c.kind === "MEDICINE");
 
   return (
     <>
@@ -32,7 +28,7 @@ export default async function SettingsPage() {
         }
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card title={`${ctx.pack.terms.practice} profile`}>
+        <Card title={`${ctx.app.terms.practice} profile`}>
           <ActionForm action={updateOrgAction} className="space-y-3">
             <fieldset disabled={!manager} className="space-y-3">
               <input name="name" defaultValue={ctx.org.name} required className="input" aria-label="Name" />
@@ -45,14 +41,6 @@ export default async function SettingsPage() {
                 <input name="email" defaultValue={ctx.org.email ?? ""} placeholder="Email" className="input" aria-label="Email" />
                 <input name="gstin" defaultValue={s.gstin ?? ""} placeholder="GSTIN (optional)" className="input" aria-label="GSTIN" />
               </div>
-              {isClinic && (
-                <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3">
-                  <label className="text-xs text-slate-600">Consultation fee (₹)<input name="consultationFee" type="number" min={0} defaultValue={s.consultationFee ?? 400} className="input mt-1" /></label>
-                  <label className="text-xs text-slate-600">Follow-up fee (₹)<input name="followUpFee" type="number" min={0} defaultValue={s.followUpFee ?? 0} className="input mt-1" /></label>
-                  <label className="text-xs text-slate-600">Follow-up window (days)<input name="followUpFreeDays" type="number" min={0} defaultValue={s.followUpFreeDays ?? 7} className="input mt-1" /></label>
-                  <label className="text-xs text-slate-600">Avg. consult (min)<input name="avgConsultMinutes" type="number" min={2} max={60} defaultValue={s.avgConsultMinutes ?? 8} className="input mt-1" /></label>
-                </div>
-              )}
               {manager && <SubmitButton>Save</SubmitButton>}
             </fieldset>
           </ActionForm>
@@ -60,9 +48,9 @@ export default async function SettingsPage() {
 
         <Card title="My details (printed on documents)">
           <ActionForm action={updateProfileAction} className="space-y-3">
-            <input name="name" defaultValue={ctx.user.name} required className="input" aria-label="Name" placeholder={`${ctx.pack.practitionerPrefix} Full Name`} />
-            <input name="qualifications" defaultValue={ctx.membership.qualifications ?? ""} className="input" aria-label="Qualifications" placeholder={isClinic ? "MBBS, MD (Medicine)" : "B.A. LL.B., Advocate"} />
-            <input name="registrationNo" defaultValue={ctx.membership.registrationNo ?? ""} className="input" aria-label="Registration number" placeholder={isClinic ? "MP Medical Council Reg. No." : "Bar Council enrolment no."} />
+            <input name="name" defaultValue={ctx.user.name} required className="input" aria-label="Name" placeholder={`${ctx.app.practitionerPrefix} Full Name`} />
+            <input name="qualifications" defaultValue={ctx.membership.qualifications ?? ""} className="input" aria-label="Qualifications" placeholder="Qualifications" />
+            <input name="registrationNo" defaultValue={ctx.membership.registrationNo ?? ""} className="input" aria-label="Registration number" placeholder="Registration / enrolment no." />
             <SubmitButton>Save</SubmitButton>
           </ActionForm>
         </Card>
@@ -93,7 +81,7 @@ export default async function SettingsPage() {
                 <input name="email" type="email" required placeholder="Email" className="input" aria-label="Email" />
                 <select name="role" className="input" aria-label="Role" defaultValue="STAFF">
                   <option value="STAFF">Front desk / staff</option>
-                  <option value="PRACTITIONER">{ctx.pack.terms.practitioner}</option>
+                  <option value="PRACTITIONER">{ctx.app.terms.practitioner}</option>
                   <option value="ADMIN">Admin</option>
                 </select>
                 <input name="password" type="text" placeholder="Temporary password" className="input" aria-label="Temporary password" />
@@ -121,8 +109,7 @@ export default async function SettingsPage() {
             ))}
           </ul>
           {manager && (
-            <ActionForm action={addCatalogItemAction} className="flex gap-2">
-              <input type="hidden" name="kind" value="SERVICE" />
+            <ActionForm action={addServiceAction} className="flex gap-2">
               <input name="name" required placeholder="Service" className="input" aria-label="Service" />
               <input name="price" type="number" min={0} placeholder="₹" className="input w-24" aria-label="Price" />
               <SubmitButton className="btn-secondary">Add</SubmitButton>
@@ -130,39 +117,28 @@ export default async function SettingsPage() {
           )}
         </Card>
 
-        {isClinic && (
-          <Card title="Favourite medicines (one-tap in prescriptions)" className="lg:col-span-2">
-            <ul className="mb-4 grid gap-x-6 sm:grid-cols-2">
-              {medicines.map((c) => {
-                const item = sanitizeRxItems([{ name: c.name, ...(c.data as object) }])[0];
-                return (
-                  <li key={c.id} className="flex items-center justify-between gap-2 border-b border-slate-100 py-1.5 text-sm">
-                    <span>
-                      {c.name} <span className="text-xs text-slate-500">· {item ? `${item.frequency}, ${instruction(item, "en")}` : ""}</span>
-                    </span>
-                    {manager && (
-                      <form action={removeCatalogItemAction}>
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="btn-ghost btn-sm" aria-label={`Remove ${c.name}`}>✕</button>
-                      </form>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            {manager && (
-              <ActionForm action={addCatalogItemAction} className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-                <input type="hidden" name="kind" value="MEDICINE" />
-                <input name="name" required placeholder="Tab. Name 500" className="input col-span-2" aria-label="Medicine" />
-                <input name="dose" placeholder="Dose" className="input" aria-label="Dose" />
-                <select name="frequency" className="input" aria-label="Frequency">{FREQUENCIES.map((f) => <option key={f}>{f}</option>)}</select>
-                <select name="timing" className="input" aria-label="Timing">{TIMINGS.map((t) => <option key={t.value} value={t.value}>{t.en}</option>)}</select>
-                <input name="days" type="number" min={1} placeholder="Days" className="input" aria-label="Days" />
-                <SubmitButton className="btn-secondary col-span-2 sm:col-span-1">Add</SubmitButton>
-              </ActionForm>
-            )}
-          </Card>
-        )}
+        <Card title="Features">
+          <ActionForm action={setModulesAction} className="space-y-2">
+            <fieldset disabled={!manager} className="space-y-2">
+              {[...ctx.app.modules, ...(ctx.app.optionalModules ?? [])].map((id) => (
+                <label key={id} className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" name={`module_${id}`} defaultChecked={ctx.modules.includes(id)} className="mt-0.5 accent-brand-600" />
+                  <span>
+                    <b>{MODULES[id].name}</b>
+                    <span className="block text-xs text-slate-500">{MODULES[id].description}</span>
+                  </span>
+                </label>
+              ))}
+              {manager && <SubmitButton className="btn-secondary">Save</SubmitButton>}
+            </fieldset>
+          </ActionForm>
+        </Card>
+
+        {extensions(ctx)
+          .flatMap((e) => e.settingsSections ?? [])
+          .map((Section, i) => (
+            <Section key={i} ctx={ctx} />
+          ))}
       </div>
     </>
   );

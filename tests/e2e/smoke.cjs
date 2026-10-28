@@ -2,7 +2,7 @@
 // Needs a running app with fresh seed data (npm run db:seed) and Playwright installed
 // (npm i --no-save playwright && npx playwright install chromium). Run: npm run e2e
 const { chromium } = require("playwright");
-const SHOTS = process.env.SHOTS_DIR || require("node:path").join(require("node:os").tmpdir(), "daftar-shots") + "/";
+const SHOTS = require("node:path").join(process.env.SHOTS_DIR || require("node:path").join(require("node:os").tmpdir(), "arcus-shots"), "/");
 require("node:fs").mkdirSync(SHOTS, { recursive: true });
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const errors = [];
@@ -22,7 +22,7 @@ let failed = 0;
   await step("landing", async () => { await page.goto(BASE); await page.getByText("Run your whole practice").waitFor(); await shot("01-landing"); });
   await step("login", async () => {
     await page.goto(BASE + "/login");
-    await page.fill("#email", "demo@daftar.in"); await page.fill("#password", "demo1234");
+    await page.fill("#email", "demo@example.com"); await page.fill("#password", "demo1234");
     await page.click("button[type=submit]"); await page.waitForURL(BASE + "/app");
     await page.getByText("Patients today").waitFor(); await shot("02-dashboard");
   });
@@ -103,7 +103,7 @@ let failed = 0;
   await step("signup new org", async () => {
     const ctx2 = await browser.newContext(); const p2 = await ctx2.newPage();
     await p2.goto(BASE + "/signup");
-    await p2.check("input[value=CLINIC]"); await p2.fill("#orgName", "Gupta Child Care"); await p2.fill("#city", "Bhopal");
+    await p2.check("input[value=clinic]"); await p2.fill("#orgName", "Gupta Child Care"); await p2.fill("#city", "Bhopal");
     await p2.fill("#name", "Dr. Ritu Gupta"); await p2.fill("#phone", "9988776655");
     await p2.fill("#email", `ritu${Date.now()}@example.com`); await p2.fill("#password", "password123");
     await p2.click("button[type=submit]"); await p2.waitForURL(BASE + "/app"); await p2.getByText("Patients today").waitFor();

@@ -1,8 +1,8 @@
-import { changeOrg, logout } from "@/actions/auth";
-import { Logo } from "@/components/logo";
-import { NavLinks } from "@/components/nav-links";
-import { listMemberships, requireCtx } from "@/core/auth";
-import { navFor } from "@/core/modules";
+import { changeOrg, logout } from "@/platform/actions/auth";
+import { Logo } from "@/platform/ui/logo";
+import { NavLinks } from "@/platform/ui/nav-links";
+import { listMemberships, requireCtx } from "@/platform/kernel/auth";
+import { navFor } from "@/platform/kernel/modules";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen md:flex">
       <aside className="border-b border-slate-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col md:border-b-0 md:border-r print:hidden">
         <div className="flex items-center justify-between px-4 py-4">
-          <Logo href="/app" />
+          <Logo href="/app" product={ctx.app.name.replace(/^Arcus /, "")} />
         </div>
         <div className="px-3 pb-3">
           {memberships.length > 1 ? (
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </nav>
         <div className="hidden border-t border-slate-100 p-3 md:block">
           <div className="truncate px-1 text-sm font-medium">{ctx.user.name}</div>
-          <div className="truncate px-1 text-xs text-slate-500">{ctx.membership.role.toLowerCase()} · {ctx.pack.name}</div>
+          <div className="truncate px-1 text-xs text-slate-500">{ctx.membership.role.toLowerCase()} · {ctx.app.name}</div>
           <form action={logout} className="mt-2">
             <button className="btn-ghost btn-sm w-full justify-start">Log out</button>
           </form>

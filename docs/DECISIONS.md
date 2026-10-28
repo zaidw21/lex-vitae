@@ -100,8 +100,30 @@ The founder's point on telemetry: it is wired up **once in the platform** (logge
 automatically tagged with org/user/request/app), so no app ever re-implements it. Same principle for every
 cross-cutting concern: apps get it for free just by running on the platform.
 
+## 2026-10-28 · Architecture settled; v0.2 built
+**Decisions (founder):**
+1. Agreed: one codebase now, a plugin framework later. Apps are separated in code with enforced
+   boundaries; a dynamic plugin system waits until a third app has traction.
+2. New repository `zaidw21/arcus` (founder to create it; this session can't create repositories).
+3. CD later, tracked as an open item; CI now.
+4. SMS/TRAI DLT not needed for now.
+5. Add the UX improvements to the plan → ranked UX track in `docs/STRATEGY.md`.
+**Built (v0.2):**
+- Rename to Arcus: platform/company name, products "Arcus Clinic" / "Arcus Legal", arch logo.
+- `src/platform` (kernel, telemetry, channels, services, modules, ui) vs `src/apps/<app>` (config.ts without UI +
+  app.ts with UI extensions) vs `src/registry.ts` (composition root).
+- Organizations store `app` (string) + enabled `modules`; schema split into platform and app files;
+  app tables have no relations into the platform; platform→app links via `refType`/`refId`.
+  Migration carries existing data across.
+- Tenant-scoped Prisma client (`ctx.db`) enforces org isolation; integration-tested.
+- Platform telemetry: JSON logs with org/user/app/request context (Cloud Logging format), error capture
+  (Cloud Error Reporting format), action timing, `onRequestError` for pages. Config in one validated module.
+- Messaging behind channel ports (Meta WhatsApp + log adapters). Health endpoint. Docker image + compose. CI.
+**Rejected along the way:** making queue/appointments app-owned (they are shared platform modules);
+a catch-all router for app pages (kept one-line Next.js route files instead: simpler, keeps Next features).
+
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
-- Domain/trademark check for "Arcus"; move code to its own repository instead of `lex-vitae`?
-- Hosting choice (Indian data residency for health data) and pilot pricing (free 60 days?).
+- Domain/trademark check for "Arcus". Repo move pending the founder creating `zaidw21/arcus`.
+- CD target confirmation (proposed: Cloud Run + Supabase, Mumbai) and pilot pricing (free 60 days?).
 - Is the Lex Vitae law firm a warm contact for the legal pack?

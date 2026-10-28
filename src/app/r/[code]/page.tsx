@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PrintButton } from "@/components/print-button";
-import { Receipt } from "@/components/receipt";
-import { db } from "@/lib/db";
+import { PrintButton } from "@/platform/ui/print-button";
+import { Receipt } from "@/platform/ui/receipt";
+import { db } from "@/platform/lib/db";
 
 export const metadata: Metadata = { title: "Receipt", robots: { index: false } };
 

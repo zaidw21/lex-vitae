@@ -1,23 +1,21 @@
-import { createInvoiceAction } from "@/actions/billing";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { LineEditor } from "@/components/line-editor";
-import { Card, PageHeader } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { findContact } from "@/core/contacts";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatPhone } from "@/lib/phone";
+import { createInvoiceAction } from "@/platform/actions/billing";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { LineEditor } from "@/platform/ui/line-editor";
+import { Card, PageHeader } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { findContact } from "@/platform/services/contacts";
+import { db } from "@/platform/lib/db";
+import { formatPhone } from "@/platform/lib/phone";
 
 export default async function NewInvoicePage({ searchParams }: { searchParams: Promise<{ contact?: string; matter?: string }> }) {
   const ctx = await requireCtx();
-  requireModule(ctx, "billing");
   const sp = await searchParams;
   const [contact, services, matter] = await Promise.all([
     sp.contact ? findContact(ctx, sp.contact) : null,
     db.catalogItem.findMany({ where: { orgId: ctx.org.id, kind: "SERVICE", active: true }, orderBy: { name: "asc" } }),
     sp.matter ? db.matter.findFirst({ where: { id: sp.matter, orgId: ctx.org.id } }) : null,
   ]);
-  const t = ctx.pack.terms;
+  const t = ctx.app.terms;
 
   return (
     <>

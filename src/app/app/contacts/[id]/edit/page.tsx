@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { updateContactAction } from "@/actions/contacts";
-import { ContactForm } from "@/components/contact-form";
-import { Card, PageHeader } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { findContact } from "@/core/contacts";
+import { updateContactAction } from "@/platform/actions/contacts";
+import { ContactForm } from "@/platform/ui/contact-form";
+import { Card, PageHeader } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { findContact } from "@/platform/services/contacts";
 
 export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireCtx();
@@ -13,7 +13,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
     <>
       <PageHeader title={`Edit ${contact.name}`} />
       <Card className="max-w-3xl">
-        <ContactForm pack={ctx.pack} action={updateContactAction} contact={contact} submitLabel="Save changes" />
+        <ContactForm pack={ctx.app} action={updateContactAction} contact={contact} submitLabel="Save changes" />
       </Card>
     </>
   );

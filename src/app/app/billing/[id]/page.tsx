@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
-import { recordPaymentAction, voidInvoiceAction } from "@/actions/billing";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { PrintButton } from "@/components/print-button";
-import { Receipt } from "@/components/receipt";
-import { Card } from "@/components/ui";
-import { canManage, requireCtx } from "@/core/auth";
-import { db } from "@/lib/db";
-import { paiseToRupees } from "@/lib/money";
-import { formatDateTime } from "@/lib/time";
-import { appUrl } from "@/lib/url";
+import { recordPaymentAction, voidInvoiceAction } from "@/platform/actions/billing";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { PrintButton } from "@/platform/ui/print-button";
+import { Receipt } from "@/platform/ui/receipt";
+import { Card } from "@/platform/ui/ui";
+import { canManage, requireCtx } from "@/platform/kernel/auth";
+import { db } from "@/platform/lib/db";
+import { paiseToRupees } from "@/platform/lib/money";
+import { formatDateTime } from "@/platform/lib/time";
+import { appUrl } from "@/platform/lib/url";
 
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireCtx();

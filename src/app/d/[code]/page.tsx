@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DocumentSheet } from "@/components/document-sheet";
-import { PrintButton } from "@/components/print-button";
-import { db } from "@/lib/db";
+import { DocumentSheet } from "@/platform/ui/document-sheet";
+import { PrintButton } from "@/platform/ui/print-button";
+import { db } from "@/platform/lib/db";
+import { appFor } from "@/registry";
 
 export const metadata: Metadata = { title: "Your document", robots: { index: false } };
 
@@ -14,7 +15,7 @@ export default async function PublicDocumentPage({ params }: { params: Promise<{
       <div className="mx-auto mb-3 flex max-w-[210mm] justify-end print:hidden">
         <PrintButton label="Download / print" />
       </div>
-      <DocumentSheet doc={doc} org={doc.org} contact={doc.contact} />
+      <DocumentSheet doc={doc} org={doc.org} contact={doc.contact} Body={appFor(doc.org.app).documentRenderers?.[doc.type]} />
     </main>
   );
 }

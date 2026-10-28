@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Logo } from "@/components/logo";
+import { Logo } from "@/platform/ui/logo";
 
 const CLINIC_FEATURES = [
   ["Live OPD queue", "Walk-ins and appointments in one queue. Patients get their token on WhatsApp and track it live, so the waiting room stays calm."],
   ["2-minute e-prescriptions", "Favourite medicines, one-tap doses, and instructions in Hindi (\"सुबह 1, रात 1 · खाने के बाद\"), printed on your letterhead and sent on WhatsApp."],
   ["Billing with cash control", "Every receipt, discount and void is logged with who did it. A day book shows cash vs UPI at closing time."],
-  ["Follow-ups that bring patients back", "Set \"review in 7 days\" and Daftar reminds the patient. Repeat medicine reminders for diabetes and BP patients."],
+  ["Follow-ups that bring patients back", "Set \"review in 7 days\" and Arcus reminds the patient. Repeat medicine reminders for diabetes and BP patients."],
 ];
 
 const LEGAL_FEATURES = [
@@ -43,7 +43,7 @@ export default function Landing() {
           Run your whole practice on WhatsApp. <span className="text-brand-600">Without the chaos.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">
-          Daftar brings the tools big hospitals and law firms use (queues, digital records, billing controls and automated
+          Arcus brings the tools big hospitals and law firms use (queues, digital records, billing controls and automated
           follow-ups) to every practice, at a price that makes sense.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -54,13 +54,13 @@ export default function Landing() {
             See the demo
           </Link>
         </div>
-        <p className="mt-3 text-xs text-slate-500">Demo login: demo@daftar.in / demo1234</p>
+        <p className="mt-3 text-xs text-slate-500">Demo login: demo@example.com / demo1234</p>
       </section>
 
       <section className="border-y border-slate-100 bg-slate-50 py-16">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-2">
           <div>
-            <h2 className="text-2xl font-semibold">🩺 For clinics</h2>
+            <h2 className="text-2xl font-semibold">Arcus Clinic <span className="text-base font-normal text-slate-500">for doctors</span></h2>
             <div className="mt-6 space-y-5">
               {CLINIC_FEATURES.map(([t, d]) => (
                 <div key={t}>
@@ -71,7 +71,7 @@ export default function Landing() {
             </div>
           </div>
           <div>
-            <h2 className="text-2xl font-semibold">⚖️ For advocates</h2>
+            <h2 className="text-2xl font-semibold">Arcus Legal <span className="text-base font-normal text-slate-500">for advocates</span></h2>
             <div className="mt-6 space-y-5">
               {LEGAL_FEATURES.map(([t, d]) => (
                 <div key={t}>
@@ -111,7 +111,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-slate-100 py-8 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Daftar · Made in India
+        © {new Date().getFullYear()} Arcus
       </footer>
     </div>
   );

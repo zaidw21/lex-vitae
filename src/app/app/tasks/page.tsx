@@ -1,20 +1,17 @@
 import Link from "next/link";
-import { createTaskAction, remindTaskAction, remindTomorrowAction, setTaskStatusAction } from "@/actions/tasks";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Badge, Card, Empty, PageHeader } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatPhone } from "@/lib/phone";
-import { addDays, formatDate, formatDateTime, istDate, toDateInput } from "@/lib/time";
+import { createTaskAction, remindTaskAction, remindTomorrowAction, setTaskStatusAction } from "@/platform/actions/tasks";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { Badge, Card, Empty, PageHeader } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { formatPhone } from "@/platform/lib/phone";
+import { addDays, formatDate, formatDateTime, istDate, toDateInput } from "@/platform/lib/time";
 
 export default async function TasksPage() {
   const ctx = await requireCtx();
-  requireModule(ctx, "tasks");
   const today = istDate();
-  const tasks = await db.task.findMany({
-    where: { orgId: ctx.org.id, status: "OPEN", dueOn: { lte: addDays(today, 14) } },
-    include: { contact: true, matter: true },
+  const tasks = await ctx.db.task.findMany({
+    where: { status: "OPEN", dueOn: { lte: addDays(today, 14) } },
+    include: { contact: true },
     orderBy: { dueOn: "asc" },
     take: 200,
   });
@@ -29,7 +26,7 @@ export default async function TasksPage() {
     <>
       <PageHeader
         title="Follow-ups"
-        subtitle={`Bring ${ctx.pack.terms.contacts.toLowerCase()} back on time. Reminders go out on WhatsApp.`}
+        subtitle={`Bring ${ctx.app.terms.contacts.toLowerCase()} back on time. Reminders go out on WhatsApp.`}
         actions={
           <ActionForm action={remindTomorrowAction}>
             <SubmitButton className="btn-primary" pendingText="Sending…">💬 Remind everyone due tomorrow</SubmitButton>
@@ -56,7 +53,6 @@ export default async function TasksPage() {
                         <div className="text-xs text-slate-500">
                           <Badge tone={g.tone}>{formatDate(t.dueOn)}</Badge>
                           {t.contact && ` · ${formatPhone(t.contact.phone)}`}
-                          {t.matter && ` · ${t.matter.title}`}
                           {t.remindedAt && ` · reminded ${formatDateTime(t.remindedAt)}`}
                         </div>
                       </div>

@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { PrintButton } from "@/components/print-button";
-import { Card, Empty, PageHeader, Stat } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatMoney } from "@/lib/money";
-import { addDays, formatDate, formatTime, istDate, istDayRange, parseDateInput, toDateInput } from "@/lib/time";
+import { PrintButton } from "@/platform/ui/print-button";
+import { Card, Empty, PageHeader, Stat } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { db } from "@/platform/lib/db";
+import { formatMoney } from "@/platform/lib/money";
+import { addDays, formatDate, formatTime, istDate, istDayRange, parseDateInput, toDateInput } from "@/platform/lib/time";
 
 /** End-of-day cash control: every rupee received, who received it, and every discount or void. */
 export default async function DayBookPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const ctx = await requireCtx();
-  requireModule(ctx, "billing");
   const day = parseDateInput((await searchParams).date) ?? istDate();
   const { start, end } = istDayRange(day);
 

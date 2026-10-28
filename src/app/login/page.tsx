@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { login } from "@/actions/auth";
-import { ActionForm, SubmitButton } from "@/components/action-form";
-import { Logo } from "@/components/logo";
-import { getCtx } from "@/core/auth";
+import { login } from "@/platform/actions/auth";
+import { ActionForm, SubmitButton } from "@/platform/ui/action-form";
+import { Logo } from "@/platform/ui/logo";
+import { getCtx } from "@/platform/kernel/auth";
 
 export const metadata: Metadata = { title: "Log in" };
 
@@ -30,11 +30,11 @@ export default async function LoginPage() {
             <SubmitButton className="btn-primary w-full" pendingText="Logging in…">Log in</SubmitButton>
           </ActionForm>
           <p className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-            Demo: <b>demo@daftar.in</b> / <b>demo1234</b> (a clinic and a law chamber)
+            Demo: <b>demo@example.com</b> / <b>demo1234</b> (a clinic and a law chamber)
           </p>
         </div>
         <p className="mt-4 text-center text-sm text-slate-600">
-          New to Daftar? <Link href="/signup" className="link">Create an account</Link>
+          New to Arcus? <Link href="/signup" className="link">Create an account</Link>
         </p>
       </div>
     </main>

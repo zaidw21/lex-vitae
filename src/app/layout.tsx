@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Daftar: practice OS for Indian professionals", template: "%s · Daftar" },
+  title: { default: "Arcus: run your practice on WhatsApp", template: "%s · Arcus" },
   description:
     "Run your clinic or law practice on WhatsApp: live OPD queue, e-prescriptions, billing with cash control, follow-ups and client updates.",
 };

@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { Empty, PageHeader } from "@/components/ui";
-import { requireCtx } from "@/core/auth";
-import { searchContacts } from "@/core/contacts";
-import { requireModule } from "@/core/modules";
-import { db } from "@/lib/db";
-import { formatPhone } from "@/lib/phone";
-import { ageFrom, formatDate } from "@/lib/time";
+import { Empty, PageHeader } from "@/platform/ui/ui";
+import { requireCtx } from "@/platform/kernel/auth";
+import { searchContacts } from "@/platform/services/contacts";
+import { db } from "@/platform/lib/db";
+import { formatPhone } from "@/platform/lib/phone";
+import { ageFrom, formatDate } from "@/platform/lib/time";
 
 export default async function ContactsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const ctx = await requireCtx();
-  requireModule(ctx, "contacts");
   const { q = "" } = await searchParams;
   const contacts = await searchContacts(ctx, q, 100);
   const lastVisits = await db.encounter.groupBy({
@@ -19,7 +17,7 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
     _count: true,
   });
   const visits = new Map(lastVisits.map((v) => [v.contactId, v]));
-  const t = ctx.pack.terms;
+  const t = ctx.app.terms;
 
   return (
     <>

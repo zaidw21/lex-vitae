@@ -1,0 +1,56 @@
+# Continuous integration: every push and pull request is typechecked, tested (including tenant
+# isolation against a real Postgres), built, smoke-tested in a browser, and built as a Docker image.
+# Deployment (CD) is not set up yet; see "Open items" in docs/STRATEGY.md.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: arcus
+          POSTGRES_PASSWORD: arcus
+          POSTGRES_DB: arcus
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arcus" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://arcus:arcus@localhost:5432/arcus
+      APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Browser smoke test
+        run: |
+          npm run db:seed
+          npm i --no-save playwright
+          npx playwright install --with-deps chromium
+          npm start &
+          npx --yes wait-on@8.0.3 http://localhost:3000/api/health
+          npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: /tmp/arcus-shots
+          if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t arcus:ci .

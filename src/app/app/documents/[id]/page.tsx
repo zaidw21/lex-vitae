@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { callNextAction } from "@/actions/queue";
-import { resendDocumentAction } from "@/actions/documents";
-import { DocumentSheet } from "@/components/document-sheet";
-import { PrintButton } from "@/components/print-button";
-import { requireCtx } from "@/core/auth";
-import { db } from "@/lib/db";
-import { appUrl } from "@/lib/url";
+import { callNextAction } from "@/platform/modules/queue/actions";
+import { resendDocumentAction } from "@/platform/actions/documents";
+import { DocumentSheet } from "@/platform/ui/document-sheet";
+import { PrintButton } from "@/platform/ui/print-button";
+import { requireCtx } from "@/platform/kernel/auth";
+import { hasModule } from "@/platform/kernel/modules";
+import { appUrl } from "@/platform/lib/url";
 
 export default async function DocumentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; sent?: string }> }) {
   const ctx = await requireCtx();
   const { saved, sent } = await searchParams;
-  const doc = await db.document.findFirst({ where: { id: (await params).id, orgId: ctx.org.id }, include: { contact: true } });
+  const doc = await ctx.db.document.findFirst({ where: { id: (await params).id }, include: { contact: true } });
   if (!doc) notFound();
-  const isClinic = ctx.org.vertical === "CLINIC";
+  const usesQueue = hasModule(ctx, "queue");
 
   return (
     <>
@@ -29,15 +29,15 @@ export default async function DocumentPage({ params, searchParams }: { params: P
             <button className="btn-secondary">💬 Send on WhatsApp</button>
           </form>
           <a href={appUrl(`/d/${doc.publicCode}`)} target="_blank" className="btn-ghost">Patient link ↗</a>
-          <Link href={`/app/contacts/${doc.contactId}`} className="btn-ghost">{ctx.pack.terms.contact} →</Link>
-          {isClinic && (
+          <Link href={`/app/contacts/${doc.contactId}`} className="btn-ghost">{ctx.app.terms.contact} →</Link>
+          {usesQueue && (
             <form action={callNextAction}>
               <button className="btn-primary">Call next patient →</button>
             </form>
           )}
         </div>
       </div>
-      <DocumentSheet doc={doc} org={ctx.org} contact={doc.contact} />
+      <DocumentSheet doc={doc} org={ctx.org} contact={doc.contact} Body={ctx.app.documentRenderers?.[doc.type]} />
     </>
   );
 }
