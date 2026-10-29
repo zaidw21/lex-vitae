@@ -144,6 +144,12 @@ records is enough), Gradle (Maven is declarative and the more widely known of th
 **Found while switching:** a read endpoint that ran outside a transaction returned "not found" under RLS. Fixed,
 and the API test now loads every screen's read endpoint.
 
+## 2026-10-29 · Maven and Spring Boot are part of the Java default
+**Decision (founder):** "Use Maven and not Gradle, and use Spring Boot." The standing rule in `AGENTS.md` is now
+Java + Spring Boot + Maven for every backend unless the founder explicitly agrees otherwise. Arcus already uses
+both (Spring Boot 4, Maven multi-module with the Maven Wrapper), so no code changes.
+**Rejected:** Gradle; other Java frameworks (Quarkus, Micronaut, Jakarta EE without Spring).
+
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
 - Domain/trademark check for "Arcus". Repo move pending the founder creating `zaidw21/arcus`.

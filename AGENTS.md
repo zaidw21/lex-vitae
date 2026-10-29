@@ -28,11 +28,11 @@ Chat history does not travel between sessions or tools; only this repo does. So:
 records, billing controls, automated follow-ups) at ₹999–5,999/month, over WhatsApp, in Hindi and English.
 "Arcus" is the company/platform name; customers buy "Arcus Clinic" / "Arcus Legal".
 
-## Default language: Java for backends (standing rule)
+## Default backend stack: Java + Spring Boot + Maven (standing rule)
 
-**Backends are written in Java (21, Spring Boot) by default, in this and any other project, unless the founder
-explicitly agrees otherwise for that project.** Don't propose or start a backend in another language without that
-agreement. Frontends may use TypeScript (Next.js here) as a UI-only client of the Java API.
+**Backends are written in Java (21) with Spring Boot, built with Maven (never Gradle), by default, in this and
+any other project, unless the founder explicitly agrees otherwise for that project.** Don't propose or start a
+backend in another language, framework or build tool without that agreement. Frontends may use TypeScript (Next.js here) as a UI-only client of the Java API.
 
 ## Stack & commands
 
