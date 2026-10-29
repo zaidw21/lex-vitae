@@ -1,39 +1,47 @@
-# Run the whole platform locally:  docker compose up --build   →  http://localhost:3000
+# Run the whole platform locally:  docker compose up --build   →  http://localhost:3000 (API on :8080)
 # Load demo data (optional):        docker compose run --rm seed
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: arcus
-      POSTGRES_PASSWORD: arcus
-      POSTGRES_DB: arcus
+      # Superuser for administration only; the API uses the ordinary `arcus` role from postgres-init.sql.
+      POSTGRES_PASSWORD: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres-init.sql:/docker-entrypoint-initdb.d/01-arcus.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U arcus"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d arcus"]
       interval: 5s
       retries: 10
 
-  app:
-    build: .
+  api:
+    build: backend
     ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://arcus:arcus@db:5432/arcus
+      - "8080:8080"
+    environment: &api-env
+      DATABASE_URL: jdbc:postgresql://db:5432/arcus
+      DATABASE_USER: arcus
+      DATABASE_PASSWORD: arcus
       APP_URL: http://localhost:3000
       WHATSAPP_PROVIDER: log
     depends_on:
       db:
         condition: service_healthy
 
+  web:
+    build: web
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://api:8080
+    depends_on:
+      - api
+
   seed:
     profiles: ["tools"]
-    build:
-      context: .
-      target: build
-    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts"]
-    environment:
-      DATABASE_URL: postgresql://arcus:arcus@db:5432/arcus
+    build: backend
+    command: ["--spring.profiles.active=seed"]
+    environment: *api-env
     depends_on:
       db:
         condition: service_healthy

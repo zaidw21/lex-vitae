@@ -1,0 +1,4 @@
+# Profile "seed": load demo data and exit (no web server).
+spring:
+  main:
+    web-application-type: none

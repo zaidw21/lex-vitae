@@ -1,5 +1,6 @@
-# Continuous integration: every push and pull request is typechecked, tested (including tenant
-# isolation against a real Postgres), built, smoke-tested in a browser, and built as a Docker image.
+# Continuous integration: on every push and pull request the Java API is built and tested (including
+# row-level-security tenant isolation against a real Postgres via Testcontainers), the web UI is typechecked,
+# tested and built, the two run together for a browser smoke test, and both Docker images are built.
 # Deployment (CD) is not set up yet; see "Open items" in docs/STRATEGY.md.
 name: CI
 
@@ -8,49 +9,101 @@ on:
   pull_request:
 
 jobs:
-  check:
+  api:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: arcus
-          POSTGRES_PASSWORD: arcus
-          POSTGRES_DB: arcus
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U arcus" --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgresql://arcus:arcus@localhost:5432/arcus
-      APP_URL: http://localhost:3000
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - run: ./mvnw -B verify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arcus-server
+          path: backend/server/target/arcus-server.jar
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - run: npx prisma migrate deploy
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: Browser smoke test
+
+  e2e:
+    needs: [api, web]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: jdbc:postgresql://localhost:5432/arcus
+      DATABASE_USER: arcus
+      DATABASE_PASSWORD: arcus
+      APP_URL: http://localhost:3000
+      API_URL: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: arcus-server
+      - name: Database with an ordinary (non-superuser) role, as in production
+        run: psql "postgresql://postgres:postgres@localhost:5432/postgres" -f deploy/postgres-init.sql
+      - name: Seed demo data and start the API
         run: |
-          npm run db:seed
+          java -jar arcus-server.jar --spring.profiles.active=seed
+          java -jar arcus-server.jar > api.log 2>&1 &
+          npx --yes wait-on@8.0.3 http://localhost:8080/actuator/health
+      - name: Start the web app and run the browser smoke test
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
           npm i --no-save playwright
           npx playwright install --with-deps chromium
           npm start &
-          npx --yes wait-on@8.0.3 http://localhost:3000/api/health
+          npx --yes wait-on@8.0.3 http://localhost:3000/login
           npm run e2e
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-screenshots
-          path: /tmp/arcus-shots
+          name: e2e-screenshots-and-api-log
+          path: |
+            /tmp/arcus-shots
+            api.log
           if-no-files-found: ignore
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t arcus:ci .
+      - run: docker build -t arcus-api:ci backend
+      - run: docker build -t arcus-web:ci web

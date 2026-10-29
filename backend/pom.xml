@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Arcus backend. Modules (dependency direction is enforced by Maven):
+      platform      everything every app gets (auth, tenancy, telemetry, channels, billing, ...)
+      apps/clinic   Arcus Clinic  (depends on platform only)
+      apps/legal    Arcus Legal   (depends on platform only)
+      server        the deployable Spring Boot application: platform + the apps it ships
+  -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.9</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.arcus</groupId>
+  <artifactId>arcus-backend</artifactId>
+  <version>0.3.0</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>platform</module>
+    <module>apps/clinic</module>
+    <module>apps/legal</module>
+    <module>server</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <archunit.version>1.4.1</archunit.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.arcus</groupId>
+        <artifactId>arcus-platform</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.arcus</groupId>
+        <artifactId>arcus-platform</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>com.arcus</groupId>
+        <artifactId>arcus-app-clinic</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.arcus</groupId>
+        <artifactId>arcus-app-legal</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

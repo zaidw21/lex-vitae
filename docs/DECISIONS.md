@@ -122,6 +122,28 @@ cross-cutting concern: apps get it for free just by running on the platform.
 **Rejected along the way:** making queue/appointments app-owned (they are shared platform modules);
 a catch-all router for app pages (kept one-line Next.js route files instead: simpler, keeps Next features).
 
+## 2026-10-29 · Backend in Java, by default, everywhere
+**Decision (founder):** "Switch the backend to Java and always remember to have it in Java in any project as
+default unless explicitly agreed upon." Standing rule recorded in `AGENTS.md`: backends are Java unless the
+founder explicitly agrees otherwise for a project.
+**What was built (v0.3):**
+- `backend/`: Java 21, Spring Boot 4, Maven multi-module: `platform` (kernel, telemetry, channels, contract, all
+  shared services and REST API, queue/appointments modules), `apps/clinic`, `apps/legal`, `server` (the
+  deployable; its pom chooses the apps). Apps plug in through Spring Boot auto-configuration.
+- Data access with Spring `JdbcClient` and plain SQL, Flyway migrations with a separate history per app.
+- **Tenant isolation moved into Postgres row-level security** (forced on every tenant table; org set per
+  transaction; fail-closed outside transactions; API refuses superuser/BYPASSRLS roles). Stronger than the
+  TypeScript version's query-scoping, because a forgotten filter can no longer leak data.
+- `web/` is now a UI-only Next.js client of the API (session token in an httpOnly cookie, forwarded as Bearer).
+- Two Docker images (api, web), compose with an ordinary DB role, CI for both plus a joint browser test.
+**Kept:** the Next.js frontend in TypeScript, because Java has no comparable server-rendered UI stack for a mobile-first
+product, and the UI holds no business logic. If the founder wants the UI in Java too, revisit (e.g. Thymeleaf/htmx).
+**Rejected:** JPA/Hibernate (hides SQL and makes RLS and audit behaviour harder to reason about; JdbcClient +
+records is enough), Gradle (Maven is declarative and the more widely known of the two; nothing here needs Gradle's flexibility), microservices per app
+(same reasons as 2026-10-28), Kotlin (the founder asked for Java).
+**Found while switching:** a read endpoint that ran outside a transaction returned "not found" under RLS. Fixed,
+and the API test now loads every screen's read endpoint.
+
 ## Open questions (resolve with the founder)
 - Which specialties are the first pilot doctors? (affects prescription templates and default medicines)
 - Domain/trademark check for "Arcus". Repo move pending the founder creating `zaidw21/arcus`.

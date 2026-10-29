@@ -40,6 +40,8 @@ WhatsApp conversation charges passed through at cost. **$1M ARR ≈ 4,000 practi
 - v0.1 (2026-10-28): platform core + clinic and legal packs, demo seed, tests.
 - v0.2 (2026-10-28): renamed to Arcus; platform/app separation with enforced boundaries; tenant-scoped
   database; platform telemetry; messaging ports/adapters; module switches per organization; Docker; CI.
+- v0.3 (2026-10-29): backend rewritten in Java (Spring Boot 4, Maven modules), tenant isolation in Postgres
+  row-level security, web is a UI-only client of the API, separate api/web Docker images.
 
 **Next: go-live with pilot clinics**
 - WhatsApp approved templates + Meta onboarding; delivery/read webhooks
@@ -72,14 +74,16 @@ repeat-patient prescription < 45 s).
 - Dynamic plugin framework (only when a third app has traction; see `docs/ARCHITECTURE.md`)
 
 **Open items**
-- **CD pipeline** (founder will set up later): Google Cloud Run (Mumbai) + Supabase Postgres (Mumbai), deploy
-  from GitHub Actions on merge to `main`. CI is already in place. Needs: GCP project with billing, Supabase project,
-  secrets in GitHub (`DATABASE_URL`, `APP_URL`, GCP service-account key).
+- **CD pipeline** (founder will set up later): Google Cloud Run (Mumbai) for the two services (api, web) +
+  Supabase Postgres (Mumbai), deploy from GitHub Actions on merge to `main`. CI is already in place. Needs: GCP
+  project with billing, Supabase project with an ordinary (non-superuser) role for the API, secrets in GitHub
+  (`DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD`, `APP_URL`, GCP service-account key). Java on Cloud Run
+  needs ~512 MB and has slower cold starts; keep min-instances at 1 for the api once pilots start.
 - **Move to the `zaidw21/arcus` repository**: the founder creates the empty repo (the agent cannot create
   repositories), then the history is pushed there.
 - Domain + trademark check for "Arcus".
 - SMS (TRAI DLT registration): not needed for now; OTP will go over WhatsApp.
-- Organization deletion flow with per-app cleanup hooks (app tables don't cascade).
+- Organization deletion flow (app tables now cascade from `organizations`; still needs a UI, export and DPDP retention rules).
 
 ## Risks
 - Low willingness to pay → anchor on cash recovered and repeat visits, not features.

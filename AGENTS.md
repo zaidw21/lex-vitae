@@ -28,55 +28,79 @@ Chat history does not travel between sessions or tools; only this repo does. So:
 records, billing controls, automated follow-ups) at ₹999–5,999/month, over WhatsApp, in Hindi and English.
 "Arcus" is the company/platform name; customers buy "Arcus Clinic" / "Arcus Legal".
 
+## Default language: Java for backends (standing rule)
+
+**Backends are written in Java (21, Spring Boot) by default, in this and any other project, unless the founder
+explicitly agrees otherwise for that project.** Don't propose or start a backend in another language without that
+agreement. Frontends may use TypeScript (Next.js here) as a UI-only client of the Java API.
+
 ## Stack & commands
 
-Next.js 15 (App Router, server components, server actions) · TypeScript strict · Prisma 6 + Postgres ·
-Tailwind 3 · Vitest · Docker. No other frameworks; keep dependencies minimal and pinned.
+**API (`backend/`)**: Java 21 · Spring Boot 4 (Web MVC, JdbcClient, Flyway, Actuator) · Postgres 16 with
+row-level security · Maven multi-module (wrapper included) · JUnit 5, Testcontainers, ArchUnit.
+**Web (`web/`)**: Next.js 15 (App Router, server components, server actions) · TypeScript strict · Tailwind 3 ·
+Vitest. No other frameworks; keep dependencies minimal and pinned.
 
 ```sh
-cp .env.example .env && npm install            # set DATABASE_URL
-npx prisma migrate deploy && npm run db:seed   # demo data: demo@example.com / demo1234, reception@example.com / demo1234
-npm run dev                                    # http://localhost:3000
-npm run typecheck && npm test && npm run build # run all three before every commit (tests need the database)
-npm run e2e                                    # browser smoke test against a running, freshly seeded app
-npx prisma migrate dev --name <change>         # after editing prisma/schema/*.prisma
-docker compose up --build                      # whole platform + Postgres; demo data: docker compose run --rm seed
+# Database: Postgres with an ordinary role (the API refuses superuser/BYPASSRLS roles)
+psql -U postgres -f deploy/postgres-init.sql             # creates role + database "arcus" (password arcus)
+
+# API: http://localhost:8080 (env: DATABASE_URL=jdbc:postgresql://..., DATABASE_USER, DATABASE_PASSWORD, APP_URL)
+cd backend && ./mvnw -B verify                           # build + all tests (Testcontainers needs Docker,
+                                                         #   or set ARCUS_TEST_DB_URL to a Postgres you own)
+java -jar server/target/arcus-server.jar --spring.profiles.active=seed   # demo data, then exits
+java -jar server/target/arcus-server.jar                 # migrations run on start
+
+# Web: http://localhost:3000 (env: API_URL, default http://localhost:8080)
+cd web && npm install && npm run dev
+npm run typecheck && npm test && npm run build           # run all three before every commit
+npm run e2e                                              # browser smoke test against running api + web, fresh seed
+
+docker compose up --build                                # db + api + web; demo data: docker compose run --rm seed
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above plus a Docker build on every push. CD is an open item.
+Demo logins (password `demo1234`): `demo@example.com` (owner of a clinic and a law chamber),
+`reception@example.com` (clinic front desk). CI (`.github/workflows/ci.yml`) runs the API tests, web checks,
+a browser test of api + web together, and both Docker builds on every push. CD is an open item.
 
 ## Layout (details in docs/ARCHITECTURE.md)
 
 ```
-src/platform/   kernel (config, auth, tenant db, action wrappers, contract), telemetry, channels, services,
-                modules (queue, appointments), actions, ui, lib
-src/apps/<app>/ config.ts (no UI) + app.ts (UI extensions) + pages, actions, components, domain logic
-src/registry.ts composition root: the apps this deployment runs
-src/app/        Next.js routes; module/app pages are mounted by one-line re-export files
-prisma/schema/  platform.prisma + apps/<app>.prisma
-tests/          unit, boundaries, tenant isolation (real DB), e2e/smoke.cjs (Playwright)
+backend/platform/      com.arcus.platform: kernel (tenant context, RLS transactions, config, auth filter, registry),
+                       telemetry, channels, spi (app contract), services + REST controllers, modules (queue, appointments)
+backend/apps/<app>/    com.arcus.apps.<app>: AppDefinition, services, controllers (/api/apps/<app>), Flyway SQL
+backend/server/        the deployable Spring Boot app; its pom.xml chooses which apps run; demo seed
+web/src/platform/      API client + types, session Ctx, action wrappers, UI contract, module UIs, shared UI
+web/src/apps/<app>/    app.ts (UI extensions) + pages, actions, components
+web/src/registry.ts    which app UIs the web contains
+deploy/                postgres-init.sql (ordinary DB role for the API)
 ```
 
 ## Rules (don't break these)
 
-- **Boundaries** (tested): platform never imports apps (only `@/registry`); apps never import each other;
-  apps never import `@/platform/lib/db`, provider adapters, `@/registry` or the Prisma runtime (`import type` is fine).
-- **Tenant isolation.** App code uses `ctx.db` (tenant-scoped) only. Platform code using the raw `db` must
-  filter by `ctx.org.id`. Public pages use unguessable `publicCode`s and expose only what the link is for.
-- **Platform stays domain-neutral.** No "patient", "doctor" or "case" in `src/platform`; use `ctx.app.terms`
-  and extension points. Need a new hook? Add it to the contract in `kernel/types.ts`, don't special-case an app.
-- **Server actions** go through `formAction()` / `action()` / `publicFormAction()` (auth, logs, timing, error
-  capture). Throw `UserError` for messages users should see; anything else shows a generic message and is
-  reported. Never export non-action helpers from a `"use server"` file (they become callable from the browser).
-- **Telemetry** comes from the platform: use `log` from `@/platform/telemetry/logger`; don't add another
-  logger or error SDK in an app.
-- **Config** only via `config()` in `kernel/config.ts`; nothing else reads `process.env`.
-- **Messaging** only through `notify()`/`deliver()`. Every customer-facing template needs English *and* Hindi.
-  Respect `whatsappOptIn` (DPDP consent).
-- **App tables** live in `prisma/schema/apps/<app>.prisma` with plain `orgId`, no relations to platform models;
-  link platform records to them with `refType`/`refId`.
-- **Money is integer paise** (`rupeesToPaise`, `formatMoney`). **Dates are IST** (`istDate`, `istDayRange`).
-  **Phones** are E.164 via `normalizePhone` and *not* unique (families share numbers).
+- **Java backend, UI-only web.** Business rules, validation that matters, data access and messaging live in the
+  API. The web only calls the API (`web/src/platform/api/client.ts`) and never talks to the database.
+- **Boundaries** (tested by ArchUnit and `web/tests/boundaries.test.ts`): platform never depends on apps; apps
+  never depend on each other; only platform/server code switches tenant scope (`Tx.system`, `Tx.asOrg`).
+- **Tenant isolation is Postgres RLS.** Every tenant table has `org_id` and `arcus_enable_tenant_rls(...)`
+  in its migration. Service methods that touch the database must run in a transaction (`@Transactional` or
+  `Tx`); outside one, queries see no rows. Never connect the API as a superuser/BYPASSRLS role. Public pages use
+  unguessable `publicCode`s and expose only what the link is for.
+- **Platform stays domain-neutral.** No "patient", "doctor" or "case" in `platform/` code or `web/src/platform`;
+  use `terms` and extension points. Need a new hook? Add it to the contract (`spi/` in Java, `kernel/types.ts` in
+  the web), don't special-case an app.
+- **Errors:** throw `UserError` (or `.NotFound` / `.Forbidden`) for messages users should see; anything else
+  returns a generic message and is reported with a stack trace. Web server actions go through `formAction()` /
+  `action()` / `publicFormAction()`; never export non-action helpers from a `"use server"` file.
+- **Telemetry** comes from the platform: `Log` in Java; don't add another logger or error SDK in an app.
+- **Config** only through Spring properties (`ArcusProperties`, `application.yml`); no `System.getenv`. In the
+  web, only the API client and session code read `process.env`.
+- **Messaging** only through `NotificationService`. Every customer-facing template needs English *and* Hindi.
+  Respect `whatsapp_opt_in` (DPDP consent).
+- **App tables** live in the app's own migrations (`db/apps/<app>/`), may reference `organizations`/`contacts`
+  with `ON DELETE CASCADE`; platform tables never reference app tables (use `ref_type`/`ref_id`).
+- **Money is integer paise** (`Money`, `formatMoney`). **Dates are IST** (`Ist`; the API sends instants as UTC ISO
+  and days as `YYYY-MM-DD`). **Phones** are E.164 via `Phones.normalize` and *not* unique (families share numbers).
 - **Billing changes are audited.** Discounts need a reason; voids need owner/admin + reason; never delete
   invoices or payments.
 - **UI**: mobile-first, Tailwind classes from `globals.css` (`btn-*`, `input`, `card`, `table`), no horizontal
@@ -85,11 +109,11 @@ tests/          unit, boundaries, tenant isolation (real DB), e2e/smoke.cjs (Pla
 
 ## Current state (keep updated)
 
-v0.2 (2026-10-28): renamed to Arcus; platform/app separation with enforced boundaries; tenant-scoped database;
-platform telemetry (structured logs, error capture, request context); messaging channel ports/adapters;
-config module; health endpoint; per-organization module switches; Docker image + compose; CI workflow.
-All v0.1 features carried over (queue, consultations/e-Rx, billing with day book, follow-ups, WhatsApp outbox,
-legal matters and hearing diary, appointments, dashboard). Verified: typecheck, 29 unit/boundary/isolation tests,
-build, 15-flow browser test locally and against the Docker image.
+v0.3 (2026-10-29): backend rewritten in **Java** (Spring Boot 4, Maven modules platform / apps / server),
+tenant isolation moved into Postgres row-level security, web reduced to a UI-only client of the API, separate
+Docker images for api and web. All v0.2 features carried over (queue, consultations/e-Rx, billing with day book,
+follow-ups, WhatsApp outbox, legal matters and hearing diary, appointments, dashboard, audit, module switches).
+Verified: 28 JUnit tests (RLS isolation, API flows, ArchUnit), 16 web tests, typecheck, build, and the 15-flow
+browser test against api + web, both locally and in Docker.
 
 Next: see "Next" and "Open items" in `docs/STRATEGY.md`.
